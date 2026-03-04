@@ -1,192 +1,266 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { setAuth } from '../utils/auth'
+import { FaEye, FaEyeSlash, FaGoogle, FaFacebookF } from 'react-icons/fa'
 
-import { useState } from "react";
+const foodIcons = ['🍕', '🍔', '🍟', '🥤', '🌮', '🍩']
 
-const Login = () => {
-  const [isSignup, setIsSignup] = useState(false);
-  const [forgotOpen, setForgotOpen] = useState(false);
+const FloatingIcon = ({ icon, delay, size, top, left, duration, rotate, opacity }) => (
+  <div
+    style={{
+      top: `${top}%`,
+      left: `${left}%`,
+      fontSize: `${size}px`,
+      animationDuration: `${duration}s`,
+      animationDelay: `${delay}s`,
+      transform: `rotate(${rotate}deg)`,
+      opacity,
+      textShadow: '2px 2px 6px rgba(0,0,0,0.3)',
+    }}
+    className="absolute animate-float-diagonal select-none pointer-events-none"
+  >
+    {icon}
+  </div>
+)
 
-  // common fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+const AuthPage = () => {
+  const [mode, setMode] = useState('login')
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    name: '',
+    surname: '',
+    mobile: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [fadeIn, setFadeIn] = useState(false)
 
-  // signup-only fields
-  const [username, setUsername] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [address, setAddress] = useState("");
-  const [contact, setContact] = useState("");
+  const navigate = useNavigate()
 
-  // forgot password
-  const [forgotEmail, setForgotEmail] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setFadeIn(true), 50)
+    return () => clearTimeout(timer)
+  }, [mode])
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (isSignup) {
-      // Basic validation
-      if (!username || !fullName || !address || !contact || !email || !password) {
-        alert("Please fill all signup fields.");
-        return;
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const url = mode === 'login'
+        ? '/api/v1/auth/login'
+        : '/api/v1/auth/signup'
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+
+      const text = await res.text()
+      let data = null
+
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch (parseErr) {
+        console.error('JSON parse error:', parseErr)
+        throw new Error('Invalid server response')
       }
-      // Here you'd send signup request to backend
-      alert(`Signup submitted for ${username} (${email})`);
-      // clear fields or switch to login
-      setIsSignup(false);
-      setUsername("");
-      setFullName("");
-      setAddress("");
-      setContact("");
-      setEmail("");
-      setPassword("");
-    } else {
-      if (!email || !password) {
-        alert("Please provide email and password to login.");
-        return;
-      }
-      // Here you'd send login request to backend
-      alert(`Login submitted for ${email}`);
-      setEmail("");
-      setPassword("");
-    }
-  };
 
-  const handleForgot = (e) => {
-    e.preventDefault();
-    if (!forgotEmail) {
-      alert("Please enter your email to reset password.");
-      return;
+      if (!res.ok) {
+        throw new Error((data && data.message) || res.statusText || 'Request failed')
+      }
+
+      setAuth(data.jwt, data.user)
+
+      alert(mode === 'login' ? 'Login successful 🎉' : 'Account created 🎉')
+
+      navigate('/profile')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    // Simulate sending reset link
-    alert(`If ${forgotEmail} is registered, a reset link has been sent.`);
-    setForgotEmail("");
-    setForgotOpen(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold text-center mb-6">
-          {isSignup ? "Create Account" : "Login"}
+    <div className="relative min-h-screen flex items-center justify-center bg-linear-to-br from-orange-400 to-yellow-200 overflow-hidden px-4 py-12">
+
+      {/* Floating Icons */}
+      {foodIcons.map((icon, i) => (
+        <FloatingIcon
+          key={i}
+          icon={icon}
+          delay={Math.random() * 5}
+          size={20 + Math.random() * 30}
+          top={Math.random() * 80}
+          left={Math.random() * 90}
+          duration={10 + Math.random() * 10}
+          rotate={Math.random() * 360}
+          opacity={0.5 + Math.random() * 0.5}
+        />
+      ))}
+
+      {/* Auth Card */}
+      <div
+        className={`relative z-10 max-w-md w-full p-8 rounded-2xl backdrop-blur-lg bg-white/80 border border-white/40 shadow-2xl transform transition-all duration-700 ${
+          fadeIn ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-5'
+        }`}
+      >
+        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+          {mode === 'login' ? 'Welcome Back!' : 'Create an Account'}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignup && (
-            <>
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-
-              <input
-                type="text"
-                placeholder="Address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-
-              <input
-                type="tel"
-                placeholder="Contact No"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                required
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-            </>
-          )}
-
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-
-          <div className="flex items-center justify-between">
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-            >
-              {isSignup ? "Sign Up" : "Login"}
-            </button>
-
-            {!isSignup && (
-              <button
-                type="button"
-                onClick={() => setForgotOpen(true)}
-                className="text-sm text-blue-500 hover:underline"
-              >
-                Forgot password?
-              </button>
-            )}
-          </div>
-        </form>
-
-        <p className="text-center text-sm mt-4">
-          {isSignup ? "Already have an account?" : "Don't have an account?"}
-          <button
-            onClick={() => setIsSignup(!isSignup)}
-            className="text-blue-500 ml-1 hover:underline"
-          >
-            {isSignup ? "Login" : "Sign Up"}
-          </button>
-        </p>
-
-        {/* Forgot password modal/panel */}
-        {forgotOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black opacity-30" onClick={() => setForgotOpen(false)}></div>
-            <div className="bg-white p-6 rounded-lg shadow-lg z-10 w-full max-w-sm">
-              <h3 className="text-lg font-semibold mb-2">Reset Password</h3>
-              <p className="text-sm text-gray-600 mb-4">Enter your account email to receive a password reset link.</p>
-              <form onSubmit={handleForgot} className="space-y-3">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none"
-                />
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setForgotOpen(false)} className="px-3 py-2 rounded border">
-                    Cancel
-                  </button>
-                  <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded">
-                    Send Reset Link
-                  </button>
-                </div>
-              </form>
-            </div>
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 animate-pulse">
+            {error}
           </div>
         )}
-      </div>
-    </div>
-  );
-};
 
-export default Login;
+        <form onSubmit={submit} className="space-y-5">
+
+          {/* Name fields */}
+          {mode === 'signup' && (
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                placeholder="First name"
+                required
+                className="px-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-green-500"
+              />
+              <input
+                name="surname"
+                value={form.surname}
+                onChange={handleChange}
+                placeholder="Last name"
+                required
+                className="px-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          )}
+
+          {/* Mobile */}
+          {mode === 'signup' && (
+            <input
+              name="mobile"
+              value={form.mobile}
+              onChange={handleChange}
+              placeholder="Mobile"
+              type="tel"
+              pattern="[0-9]{10}"
+              required
+              className="px-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-green-500"
+            />
+          )}
+
+          {/* Email */}
+          <input
+            autoFocus
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            placeholder="Email"
+            type="email"
+            required
+            className="px-4 py-2 border rounded-lg w-full focus:ring-2 focus:ring-green-500"
+          />
+
+          {/* Password */}
+          <div className="relative">
+            <input
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Password"
+              type={showPassword ? 'text' : 'password'}
+              minLength={6}
+              required
+              className="px-4 py-2 border rounded-lg w-full pr-10 focus:ring-2 focus:ring-green-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-3 rounded-lg text-white font-semibold transition-all duration-300 ${
+              loading
+                ? 'bg-green-400 cursor-not-allowed'
+                : 'bg-linear-to-r from-green-500 to-emerald-600 hover:scale-105 hover:shadow-lg'
+            }`}
+          >
+            {loading
+              ? mode === 'login'
+                ? 'Logging in...'
+                : 'Creating...'
+              : mode === 'login'
+              ? 'Log in'
+              : 'Sign up'}
+          </button>
+        </form>
+
+        {/* Social Login */}
+        <div className="mt-6 space-y-3">
+          <button className="w-full flex items-center justify-center gap-2 border py-2 rounded-lg hover:bg-gray-50 transition">
+            <FaGoogle className="text-red-500" />
+            Continue with Google
+          </button>
+
+          <button className="w-full flex items-center justify-center gap-2 border py-2 rounded-lg hover:bg-gray-50 transition">
+            <FaFacebookF className="text-blue-600" />
+            Continue with Facebook
+          </button>
+        </div>
+
+        {/* Switch Mode */}
+        <p className="mt-6 text-center text-sm text-gray-600">
+          {mode === 'login'
+            ? "Don't have an account?"
+            : 'Already have an account?'}{' '}
+          <button
+            onClick={() => {
+              setMode(mode === 'login' ? 'signup' : 'login')
+              setForm({ email: '', password: '', name: '', surname: '', mobile: '' })
+              setError('')
+            }}
+            className="text-green-600 font-medium hover:underline"
+          >
+            {mode === 'login' ? 'Sign up' : 'Log in'}
+          </button>
+        </p>
+      </div>
+
+      {/* Animation */}
+      <style>
+        {`
+          @keyframes float-diagonal {
+            0% { transform: translate(0,0) rotate(0deg); }
+            50% { transform: translate(20px, -30px) rotate(180deg); }
+            100% { transform: translate(0,0) rotate(360deg); }
+          }
+          .animate-float-diagonal {
+            animation: float-diagonal linear infinite;
+          }
+        `}
+      </style>
+    </div>
+  )
+}
+
+export default AuthPage
